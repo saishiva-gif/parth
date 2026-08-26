@@ -7,7 +7,11 @@ from the ClickPost Signal app.
 ## Stack
 
 - Frontend: React + Vite + TypeScript + Tailwind + Recharts, dark-mode-first.
-- Backend: Python serverless functions (`/api`) using `databricks-sql-connector`.
+- Backend: Python serverless functions (`/api`) calling Databricks' Statement
+  Execution REST API directly via `requests` (not the `databricks-sql-connector`
+  package — that pulls in `pandas`/`pyarrow`/`numpy`/`thrift` and pushed the
+  Vercel function bundle over the 500 MB limit; the REST API needs nothing
+  beyond `requests`). See `api/_lib/databricks_client.py`.
 - Config: MOUs are editable in-app (see below); alert thresholds are hand-maintained YAML (`config/thresholds.yaml`).
 
 ## Billing convention (important, do not change without re-confirming)

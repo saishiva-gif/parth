@@ -1,3 +1,7 @@
+import time
+
+import requests
+
 from . import config
 
 # Only these two api_types are ever queried — Parth billing counts the
@@ -21,13 +25,70 @@ where bd.billing_service_id = be.id
 order by au.username, be.api_type, bd.day
 """
 
+POLL_INTERVAL_SECONDS = 2
+POLL_TIMEOUT_SECONDS = 280  # keep well under Vercel's function execution limit
+
+
+def _warehouse_id() -> str:
+    # DATABRICKS_HTTP_PATH looks like "/sql/1.0/warehouses/<id>"
+    return config.DATABRICKS_HTTP_PATH.rstrip("/").rsplit("/", 1)[-1]
+
+
+def _headers() -> dict:
+    return {"Authorization": f"Bearer {config.DATABRICKS_TOKEN}"}
+
+
+def _base_url() -> str:
+    return f"https://{config.DATABRICKS_SERVER_HOSTNAME}"
+
+
+def _wait_for_result(statement: dict) -> dict:
+    """Polls until the statement reaches a terminal state, returns the final
+    status payload (containing `manifest` and the first result chunk)."""
+    started = time.monotonic()
+    while statement["status"]["state"] in ("PENDING", "RUNNING"):
+        if time.monotonic() - started > POLL_TIMEOUT_SECONDS:
+            raise RuntimeError(f"Databricks statement {statement['statement_id']} timed out waiting for a result")
+        time.sleep(POLL_INTERVAL_SECONDS)
+        resp = requests.get(
+            f"{_base_url()}/api/2.0/sql/statements/{statement['statement_id']}",
+            headers=_headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        statement = resp.json()
+
+    if statement["status"]["state"] != "SUCCEEDED":
+        error = statement["status"].get("error", {})
+        raise RuntimeError(
+            f"Databricks query failed ({statement['status']['state']}): "
+            f"{error.get('error_code')} {error.get('message')}"
+        )
+    return statement
+
+
+def _collect_rows(statement: dict) -> list[list]:
+    """Follows result chunk pagination and returns every row as a raw list
+    of column values (position order matches `manifest.schema.columns`)."""
+    rows = list(statement["result"]["data_array"])
+    next_chunk = statement["result"].get("next_chunk_index")
+    while next_chunk is not None:
+        resp = requests.get(
+            f"{_base_url()}/api/2.0/sql/statements/{statement['statement_id']}/result/chunks/{next_chunk}",
+            headers=_headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        chunk = resp.json()
+        rows.extend(chunk["data_array"])
+        next_chunk = chunk.get("next_chunk_index")
+    return rows
+
 
 def fetch_usage_rows(start_date: str, end_date: str) -> list[dict]:
     """Fetch daily usage rows for [start_date, end_date). Raises on any
     connection/query failure — callers must not treat an exception as zero
     usage and must not advance the watermark on failure."""
-    from databricks import sql as dbsql
-
     if not (config.DATABRICKS_SERVER_HOSTNAME and config.DATABRICKS_HTTP_PATH and config.DATABRICKS_TOKEN):
         raise RuntimeError(
             "Missing Databricks credentials — set DATABRICKS_SERVER_HOSTNAME, "
@@ -36,22 +97,34 @@ def fetch_usage_rows(start_date: str, end_date: str) -> list[dict]:
 
     query = BASE_QUERY.format(catalog=config.DATABRICKS_CATALOG, start=start_date, end=end_date)
 
-    with dbsql.connect(
-        server_hostname=config.DATABRICKS_SERVER_HOSTNAME,
-        http_path=config.DATABRICKS_HTTP_PATH,
-        access_token=config.DATABRICKS_TOKEN,
-    ) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+    resp = requests.post(
+        f"{_base_url()}/api/2.0/sql/statements",
+        headers=_headers(),
+        json={
+            "statement": query,
+            "warehouse_id": _warehouse_id(),
+            "wait_timeout": "30s",
+            "on_wait_timeout": "CONTINUE",
+            "format": "JSON_ARRAY",
+            "disposition": "INLINE",
+        },
+        timeout=45,
+    )
+    resp.raise_for_status()
+    statement = _wait_for_result(resp.json())
 
-    return [
-        {
-            "username": r["username"],
-            "day": r["day"].isoformat() if hasattr(r["day"], "isoformat") else str(r["day"]),
-            "count": int(r["count"]),
-            "api_type": r["api_type"],
-        }
-        for r in rows
-    ]
+    columns = [c["name"] for c in statement["manifest"]["schema"]["columns"]]
+    raw_rows = _collect_rows(statement)
+
+    out = []
+    for values in raw_rows:
+        row = dict(zip(columns, values))
+        out.append(
+            {
+                "username": row["username"],
+                "day": row["day"],
+                "count": int(row["count"]),
+                "api_type": row["api_type"],
+            }
+        )
+    return out
