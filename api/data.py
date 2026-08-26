@@ -16,7 +16,7 @@ def build_response() -> dict:
     usage = storage.load_usage()
     mou_index = load_mou_index()
     thresholds = config.load_thresholds()
-    return compute_dashboard(
+    result = compute_dashboard(
         usage_rows=usage["rows"],
         mou_index=mou_index,
         thresholds=thresholds,
@@ -24,6 +24,8 @@ def build_response() -> dict:
         today=date.today(),
         fetched_through=usage["fetched_through"],
     )
+    result["storage_backend"] = "postgres" if config.DATABASE_URL else "local-file (NOT persistent on Vercel)"
+    return result
 
 
 class handler(BaseHTTPRequestHandler):

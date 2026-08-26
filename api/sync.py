@@ -13,6 +13,7 @@ from _lib.databricks_client import fetch_usage_rows
 
 
 def run_sync() -> dict:
+    backend = "postgres" if config.DATABASE_URL else "local-file (NOT persistent on Vercel)"
     existing = storage.load_usage()
 
     if existing["fetched_through"] is None:
@@ -25,7 +26,12 @@ def run_sync() -> dict:
     end = date.today()  # exclusive upper bound in the query — pulls through yesterday
 
     if start >= end:
-        return {"status": "noop", "reason": "already up to date", "fetched_through": existing["fetched_through"]}
+        return {
+            "status": "noop",
+            "reason": "already up to date",
+            "fetched_through": existing["fetched_through"],
+            "storage_backend": backend,
+        }
 
     new_rows = fetch_usage_rows(start.isoformat(), end.isoformat())
 
@@ -48,6 +54,7 @@ def run_sync() -> dict:
         "rows_fetched": len(new_rows),
         "range": [start.isoformat(), end.isoformat()],
         "fetched_through": new_fetched_through,
+        "storage_backend": backend,
     }
 
 
