@@ -1,0 +1,7 @@
+# Global alert thresholds, applied uniformly across all accounts/metrics.
+# pct_of_mou = pace-projected month-end usage / mou_monthly * 100
+#   under 80%  -> "under"    (at risk of missing committed minimum)
+#   over 120%  -> "over"     (upsell signal / possible unbilled overage)
+#   otherwise  -> "on_track"
+under_pct: 80
+over_pct: 120

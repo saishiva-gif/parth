@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+data/*.json
+.vercel
+*.pyc
+__pycache__/

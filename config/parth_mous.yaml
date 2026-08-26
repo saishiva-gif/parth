@@ -1,0 +1,26 @@
+# One-time seed for the in-app MOU editor ("Manage MOUs" in the dashboard
+# header) — read once on first run, then the editor's own storage takes over
+# and this file is no longer consulted. See README's "MOU config" section.
+#
+# `databricks_username` is the join key back to `au.username` in the
+# Databricks billing query — it can be a single string or a list of strings
+# if an account spans multiple usernames. Add `effective_to` when an MOU is
+# superseded so history isn't rewritten.
+#
+# PLACEHOLDER DATA — replace with real committed MOU values via the in-app
+# editor before relying on this dashboard for account outreach decisions.
+
+- databricks_username: "sample_account_a"
+  metric: NDR_AI_AGENT_WITHOUT_VOICEMAIL
+  mou_monthly: 5000
+  effective_from: "2026-01-01"
+
+- databricks_username: "sample_account_a"
+  metric: ORDER_CONFIRMATION_WITHOUT_VOICEMAIL
+  mou_monthly: 2000
+  effective_from: "2026-01-01"
+
+- databricks_username: "sample_account_b"
+  metric: NDR_AI_AGENT_WITHOUT_VOICEMAIL
+  mou_monthly: 3000
+  effective_from: "2026-01-01"
