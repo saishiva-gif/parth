@@ -6,3 +6,4 @@ data/*.json
 .vercel
 *.pyc
 __pycache__/
+.claude/
