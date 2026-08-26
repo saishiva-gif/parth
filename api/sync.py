@@ -1,8 +1,12 @@
 import json
 import os
+import sys
 import traceback
 from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _lib import config, storage
 from _lib.databricks_client import fetch_usage_rows

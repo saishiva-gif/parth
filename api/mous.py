@@ -1,7 +1,11 @@
 import json
+import sys
 import traceback
 from datetime import date
 from http.server import BaseHTTPRequestHandler
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _lib import config, storage
 
