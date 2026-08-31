@@ -13,7 +13,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'no_mou', label: 'No MOU' },
 ]
 
-const PAGE_SIZES = [10, 25, 50]
+const PAGE_SIZE = 10
 
 export default function AccountTable({
   accounts,
@@ -30,7 +30,6 @@ export default function AccountTable({
   const [sortKey, setSortKey] = useState<SortKey>('pct_of_mou')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
 
   const counts = useMemo(() => {
     const c: Record<FilterKey, number> = { all: accounts.length, under: 0, on_track: 0, over: 0, no_mou: 0 }
@@ -64,13 +63,13 @@ export default function AccountTable({
     return rows
   }, [accounts, filter, activeOnly, search, sortKey, sortDir])
 
-  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / pageSize))
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
   const clampedPage = Math.min(page, totalPages)
-  const pageRows = filteredSorted.slice((clampedPage - 1) * pageSize, clampedPage * pageSize)
+  const pageRows = filteredSorted.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE)
 
   useEffect(() => {
     setPage(1)
-  }, [filter, activeOnly, search, sortKey, sortDir, pageSize])
+  }, [filter, activeOnly, search, sortKey, sortDir])
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -156,7 +155,9 @@ export default function AccountTable({
                 align="right"
               />
               <th className="px-4 py-2.5">Status</th>
-              <th className="px-4 py-2.5 text-right">Trend</th>
+              <th className="px-4 py-2.5 text-right" title="% change between the last two fully completed weeks (Mon–Sun). The current, in-progress week is never included.">
+                Trend (WoW)
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -188,9 +189,7 @@ export default function AccountTable({
                   <AlertBadge state={a.alert} />
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-ink-muted">
-                  {a.trend_vs_prior_month_pct !== null
-                    ? `${a.trend_vs_prior_month_pct > 0 ? '+' : ''}${a.trend_vs_prior_month_pct.toFixed(0)}%`
-                    : '—'}
+                  {a.trend_wow_pct !== null ? `${a.trend_wow_pct > 0 ? '+' : ''}${a.trend_wow_pct.toFixed(0)}%` : '—'}
                 </td>
               </tr>
             ))}
@@ -206,24 +205,11 @@ export default function AccountTable({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border px-4 py-2.5 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <span>
-            {filteredSorted.length === 0
-              ? '0 results'
-              : `${(clampedPage - 1) * pageSize + 1}–${Math.min(clampedPage * pageSize, filteredSorted.length)} of ${filteredSorted.length}`}
-          </span>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            className="rounded-md border border-border bg-bg px-1.5 py-0.5 text-xs text-ink outline-none focus:border-accent"
-          >
-            {PAGE_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size} / page
-              </option>
-            ))}
-          </select>
-        </div>
+        <span>
+          {filteredSorted.length === 0
+            ? '0 results'
+            : `${(clampedPage - 1) * PAGE_SIZE + 1}–${Math.min(clampedPage * PAGE_SIZE, filteredSorted.length)} of ${filteredSorted.length}`}
+        </span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}

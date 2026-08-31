@@ -1,5 +1,5 @@
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from . import mou as mou_lib
 
@@ -8,6 +8,35 @@ def _month_end(year: int, month: int, today: date) -> date:
     last_day = calendar.monthrange(year, month)[1]
     end = date(year, month, last_day)
     return min(end, today)
+
+
+def _iso_week_key(day_str: str) -> tuple[int, int]:
+    iso_year, iso_week, _ = date.fromisoformat(day_str).isocalendar()
+    return (iso_year, iso_week)
+
+
+def _iso_week_end(iso_year: int, iso_week: int) -> date:
+    monday = date.fromisocalendar(iso_year, iso_week, 1)
+    return monday + timedelta(days=6)  # Sunday
+
+
+def _week_over_week_trend(days: dict, today: date):
+    """% change between the last two FULLY COMPLETE ISO weeks (Mon-Sun) —
+    the current, still-in-progress week is always excluded so a half-empty
+    week never gets compared against a full one."""
+    week_totals: dict[tuple[int, int], int] = {}
+    for d, c in days.items():
+        key = _iso_week_key(d)
+        week_totals[key] = week_totals.get(key, 0) + c
+
+    complete_weeks = sorted(key for key in week_totals if _iso_week_end(*key) < today)
+    if len(complete_weeks) < 2:
+        return None
+
+    latest, previous = week_totals[complete_weeks[-1]], week_totals[complete_weeks[-2]]
+    if previous == 0:
+        return None
+    return (latest - previous) / previous * 100
 
 
 def _classify(pct, thresholds):
@@ -61,12 +90,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
             pct_of_mou = (pace_projected / mou_monthly * 100) if mou_monthly else None
             alert = _classify(pct_of_mou, thresholds)
 
-            completed = [m for m in months_out if m["month"] != current_month]
-            trend = None
-            if len(completed) >= 2:
-                prev, prev2 = completed[-1]["actual"], completed[-2]["actual"]
-                if prev2 > 0:
-                    trend = (prev - prev2) / prev2 * 100
+            trend = _week_over_week_trend(days, today)
 
             accounts_out.append(
                 {
@@ -78,7 +102,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
                     "pace_projected": round(pace_projected, 1),
                     "pct_of_mou": round(pct_of_mou, 1) if pct_of_mou is not None else None,
                     "alert": alert,
-                    "trend_vs_prior_month_pct": round(trend, 1) if trend is not None else None,
+                    "trend_wow_pct": round(trend, 1) if trend is not None else None,
                     "months": months_out,
                 }
             )

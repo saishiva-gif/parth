@@ -17,7 +17,7 @@ export interface AccountMetric {
   pace_projected: number
   pct_of_mou: number | null
   alert: AlertState
-  trend_vs_prior_month_pct: number | null
+  trend_wow_pct: number | null
   months: MonthUsage[]
 }
 
