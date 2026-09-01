@@ -15,15 +15,21 @@ def _iso_week_key(day_str: str) -> tuple[int, int]:
     return (iso_year, iso_week)
 
 
+def _iso_week_start(iso_year: int, iso_week: int) -> date:
+    return date.fromisocalendar(iso_year, iso_week, 1)  # Monday
+
+
 def _iso_week_end(iso_year: int, iso_week: int) -> date:
-    monday = date.fromisocalendar(iso_year, iso_week, 1)
-    return monday + timedelta(days=6)  # Sunday
+    return _iso_week_start(iso_year, iso_week) + timedelta(days=6)  # Sunday
 
 
 def _week_over_week_trend(days: dict, today: date):
-    """% change between the last two FULLY COMPLETE ISO weeks (Mon-Sun) —
-    the current, still-in-progress week is always excluded so a half-empty
-    week never gets compared against a full one."""
+    """Compares the last two FULLY COMPLETE ISO weeks (Mon-Sun) — the
+    current, still-in-progress week is always excluded so a half-empty week
+    never gets compared against a full one. Returns the full breakdown (both
+    weeks' date ranges and totals, plus the resulting %) so the UI can show
+    exactly how the number was derived, or None if fewer than two complete
+    weeks of history exist yet."""
     week_totals: dict[tuple[int, int], int] = {}
     for d, c in days.items():
         key = _iso_week_key(d)
@@ -33,10 +39,23 @@ def _week_over_week_trend(days: dict, today: date):
     if len(complete_weeks) < 2:
         return None
 
-    latest, previous = week_totals[complete_weeks[-1]], week_totals[complete_weeks[-2]]
-    if previous == 0:
-        return None
-    return (latest - previous) / previous * 100
+    prev_key, latest_key = complete_weeks[-2], complete_weeks[-1]
+    prev_total, latest_total = week_totals[prev_key], week_totals[latest_key]
+    pct = (latest_total - prev_total) / prev_total * 100 if prev_total > 0 else None
+
+    return {
+        "previous_week": {
+            "start": _iso_week_start(*prev_key).isoformat(),
+            "end": _iso_week_end(*prev_key).isoformat(),
+            "total": prev_total,
+        },
+        "latest_week": {
+            "start": _iso_week_start(*latest_key).isoformat(),
+            "end": _iso_week_end(*latest_key).isoformat(),
+            "total": latest_total,
+        },
+        "pct": round(pct, 1) if pct is not None else None,
+    }
 
 
 def _classify(pct, thresholds):
@@ -92,7 +111,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
             pct_of_mou = (pace_projected / mou_monthly * 100) if mou_monthly else None
             alert = _classify(pct_of_mou, thresholds)
 
-            trend = _week_over_week_trend(days, today)
+            trend_detail = _week_over_week_trend(days, today)
 
             accounts_out.append(
                 {
@@ -105,7 +124,8 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
                     "pace_projected": round(pace_projected, 1),
                     "pct_of_mou": round(pct_of_mou, 1) if pct_of_mou is not None else None,
                     "alert": alert,
-                    "trend_wow_pct": round(trend, 1) if trend is not None else None,
+                    "trend_wow_pct": trend_detail["pct"] if trend_detail else None,
+                    "trend_wow_detail": trend_detail,
                     "months": months_out,
                 }
             )

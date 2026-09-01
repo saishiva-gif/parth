@@ -2,6 +2,68 @@ import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContaine
 import type { AccountMetric } from '../types'
 import AlertBadge from './AlertBadge'
 
+function formatWeek(start: string, end: string) {
+  const s = new Date(start + 'T00:00:00')
+  const e = new Date(end + 'T00:00:00')
+  const fmt = (d: Date, withMonth: boolean) =>
+    d.toLocaleDateString('en-US', withMonth ? { month: 'short', day: 'numeric' } : { day: 'numeric' })
+  const sameMonth = s.getMonth() === e.getMonth()
+  return `${fmt(s, true)}–${fmt(e, !sameMonth)}`
+}
+
+function TrendExplainer({ account }: { account: AccountMetric }) {
+  const detail = account.trend_wow_detail
+
+  if (!detail) {
+    return (
+      <div className="mt-4 rounded-md border border-border bg-bg px-3 py-2 text-xs text-ink-faint">
+        Trend (WoW): not enough history yet — needs at least two fully completed weeks (Mon–Sun).
+      </div>
+    )
+  }
+
+  const { previous_week: prev, latest_week: latest, pct } = detail
+  const delta = latest.total - prev.total
+
+  return (
+    <div className="mt-4 rounded-md border border-border bg-bg px-3 py-2.5 text-xs">
+      <div className="flex items-center justify-between text-ink-muted">
+        <span>Trend (WoW) — last two fully completed weeks</span>
+        {pct !== null && (
+          <span className={`font-semibold tabular-nums ${pct > 0 ? 'text-good' : pct < 0 ? 'text-bad' : 'text-ink'}`}>
+            {pct > 0 ? '+' : ''}
+            {pct.toFixed(1)}%
+          </span>
+        )}
+      </div>
+      <div className="mt-1.5 flex items-center gap-2 tabular-nums text-ink">
+        <span>
+          {formatWeek(prev.start, prev.end)}: <span className="font-medium">{prev.total.toLocaleString()}</span>
+        </span>
+        <span className="text-ink-faint">→</span>
+        <span>
+          {formatWeek(latest.start, latest.end)}: <span className="font-medium">{latest.total.toLocaleString()}</span>
+        </span>
+      </div>
+      <div className="mt-1 text-ink-faint">
+        {pct !== null ? (
+          <>
+            ({latest.total.toLocaleString()} − {prev.total.toLocaleString()}) ÷ {prev.total.toLocaleString()} × 100 ={' '}
+            {pct > 0 ? '+' : ''}
+            {pct.toFixed(1)}%
+          </>
+        ) : (
+          <>
+            Previous week had 0 usage, so % change is undefined — raw change is{' '}
+            {delta > 0 ? '+' : ''}
+            {delta.toLocaleString()}.
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AccountDetail({ account }: { account: AccountMetric }) {
   const chartData = account.months.map((m) => ({ month: m.month, actual: m.actual }))
   const currentMou = account.mou_monthly
@@ -12,6 +74,8 @@ export default function AccountDetail({ account }: { account: AccountMetric }) {
         <h3 className="text-lg font-semibold">{account.account}</h3>
         <AlertBadge state={account.alert} />
       </div>
+
+      <TrendExplainer account={account} />
 
       <div className="mt-4 h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">

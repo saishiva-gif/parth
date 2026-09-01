@@ -8,6 +8,18 @@ export interface MonthUsage {
   mou: number | null
 }
 
+export interface WeekUsage {
+  start: string // "2026-08-17"
+  end: string // "2026-08-23"
+  total: number
+}
+
+export interface TrendDetail {
+  previous_week: WeekUsage
+  latest_week: WeekUsage
+  pct: number | null // null when previous_week.total is 0 (undefined % change)
+}
+
 export interface AccountMetric {
   account: string
   databricks_username: string
@@ -19,6 +31,7 @@ export interface AccountMetric {
   pct_of_mou: number | null
   alert: AlertState
   trend_wow_pct: number | null
+  trend_wow_detail: TrendDetail | null
   months: MonthUsage[]
 }
 
