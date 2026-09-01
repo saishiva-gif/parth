@@ -220,6 +220,14 @@ export default function AccountTable({
                 </td>
               </tr>
             )}
+            {pageRows.length > 0 &&
+              Array.from({ length: PAGE_SIZE - pageRows.length }).map((_, i) => (
+                <tr key={`filler-${i}`} aria-hidden="true">
+                  <td className="px-4 py-2.5" colSpan={6}>
+                    &nbsp;
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
