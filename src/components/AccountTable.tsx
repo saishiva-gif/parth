@@ -149,7 +149,15 @@ export default function AccountTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-[26%]" />
+            <col className="w-[14%]" />
+            <col className="w-[12%]" />
+            <col className="w-[18%]" />
+            <col className="w-[14%]" />
+            <col className="w-[16%]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-border-subtle text-left text-xs text-ink-muted">
               <Th label="Account" onClick={() => toggleSort('account')} active={sortKey === 'account'} dir={sortDir} />
@@ -195,7 +203,9 @@ export default function AccountTable({
                       className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${a.is_active ? 'bg-good' : 'bg-ink-faint/40'}`}
                       title={a.is_active ? 'Active this month' : 'No usage yet this month'}
                     />
-                    <div className="font-medium">{a.account}</div>
+                    <div className="min-w-0 flex-1 truncate font-medium" title={a.account}>
+                      {a.account}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{a.mtd_usage.toLocaleString()}</td>
