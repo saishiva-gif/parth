@@ -14,6 +14,7 @@ export interface AccountMetric {
   mou_monthly: number | null
   mtd_usage: number
   is_active: boolean
+  is_active_last_month: boolean
   pace_projected: number
   pct_of_mou: number | null
   alert: AlertState
@@ -27,6 +28,7 @@ export interface MetricSummary {
   over: number
   no_mou: number
   active: number
+  active_last_month: number
   total_mtd_usage: number
   total_mou: number
 }

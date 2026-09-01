@@ -58,6 +58,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
         usage[r["api_type"]].setdefault(r["username"], {})[r["day"]] = r["count"]
 
     current_month = today.strftime("%Y-%m")
+    last_month = (today.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 
     result_metrics = {}
     for metric in metrics:
@@ -81,6 +82,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
                 months_out.append({"month": month_str, "actual": month_actual, "mou": month_mou})
 
             mtd_usage = next((m["actual"] for m in months_out if m["month"] == current_month), 0)
+            last_month_usage = sum(c for d, c in days.items() if d.startswith(last_month))
             days_elapsed = sum(1 for d in days if d.startswith(current_month))
             days_in_month = calendar.monthrange(today.year, today.month)[1]
             pace_projected = (mtd_usage / days_elapsed * days_in_month) if days_elapsed > 0 else 0.0
@@ -99,6 +101,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
                     "mou_monthly": mou_monthly,
                     "mtd_usage": mtd_usage,
                     "is_active": mtd_usage > 0,
+                    "is_active_last_month": last_month_usage > 0,
                     "pace_projected": round(pace_projected, 1),
                     "pct_of_mou": round(pct_of_mou, 1) if pct_of_mou is not None else None,
                     "alert": alert,
@@ -113,6 +116,7 @@ def compute_dashboard(usage_rows: list[dict], mou_index: dict, thresholds: dict,
             "over": sum(1 for a in accounts_out if a["alert"] == "over"),
             "no_mou": sum(1 for a in accounts_out if a["alert"] == "no_mou"),
             "active": sum(1 for a in accounts_out if a["is_active"]),
+            "active_last_month": sum(1 for a in accounts_out if a["is_active_last_month"]),
             "total_mtd_usage": sum(a["mtd_usage"] for a in accounts_out),
             "total_mou": sum(a["mou_monthly"] for a in accounts_out if a["mou_monthly"]),
         }

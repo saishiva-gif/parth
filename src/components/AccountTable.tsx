@@ -25,7 +25,8 @@ export default function AccountTable({
   selected: string | null
 }) {
   const [filter, setFilter] = useState<FilterKey>('all')
-  const [activeOnly, setActiveOnly] = useState(false)
+  const [activeThisMonth, setActiveThisMonth] = useState(false)
+  const [activeLastMonth, setActiveLastMonth] = useState(false)
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('pct_of_mou')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -37,13 +38,17 @@ export default function AccountTable({
     return c
   }, [accounts])
 
-  const activeCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
+  const activeThisMonthCount = useMemo(() => accounts.filter((a) => a.is_active).length, [accounts])
+  const activeLastMonthCount = useMemo(() => accounts.filter((a) => a.is_active_last_month).length, [accounts])
 
   const filteredSorted = useMemo(() => {
     const q = search.trim().toLowerCase()
     let rows = accounts.filter((a) => filter === 'all' || a.alert === filter)
-    if (activeOnly) {
+    if (activeThisMonth) {
       rows = rows.filter((a) => a.is_active)
+    }
+    if (activeLastMonth) {
+      rows = rows.filter((a) => a.is_active_last_month)
     }
     if (q) {
       rows = rows.filter(
@@ -61,7 +66,7 @@ export default function AccountTable({
       return sortDir === 'asc' ? (an as number) - (bn as number) : (bn as number) - (an as number)
     })
     return rows
-  }, [accounts, filter, activeOnly, search, sortKey, sortDir])
+  }, [accounts, filter, activeThisMonth, activeLastMonth, search, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / PAGE_SIZE))
   const clampedPage = Math.min(page, totalPages)
@@ -69,7 +74,7 @@ export default function AccountTable({
 
   useEffect(() => {
     setPage(1)
-  }, [filter, activeOnly, search, sortKey, sortDir])
+  }, [filter, activeThisMonth, activeLastMonth, search, sortKey, sortDir])
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -115,15 +120,30 @@ export default function AccountTable({
           ))}
           <span className="mx-1 h-4 w-px bg-border" />
           <button
-            onClick={() => setActiveOnly((v) => !v)}
-            title="Active = usage &gt; 0 so far this month"
+            onClick={() => setActiveThisMonth((v) => !v)}
+            title="Usage &gt; 0 so far this month"
             className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              activeOnly ? 'bg-bg-raised text-ink' : 'text-ink-muted hover:text-ink'
+              activeThisMonth ? 'bg-bg-raised text-ink' : 'text-ink-muted hover:text-ink'
             }`}
           >
-            <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${activeOnly ? 'bg-good' : 'bg-ink-faint'}`} />
-            Active only
-            <span className="ml-1 text-ink-faint">{activeCount}</span>
+            <span
+              className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${activeThisMonth ? 'bg-good' : 'bg-ink-faint'}`}
+            />
+            Active this month
+            <span className="ml-1 text-ink-faint">{activeThisMonthCount}</span>
+          </button>
+          <button
+            onClick={() => setActiveLastMonth((v) => !v)}
+            title="Usage &gt; 0 in the previous fully completed calendar month — useful early in a new month before this month's data has caught up"
+            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              activeLastMonth ? 'bg-bg-raised text-ink' : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            <span
+              className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${activeLastMonth ? 'bg-good' : 'bg-ink-faint'}`}
+            />
+            Active last month
+            <span className="ml-1 text-ink-faint">{activeLastMonthCount}</span>
           </button>
         </div>
       </div>

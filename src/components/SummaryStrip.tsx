@@ -1,11 +1,22 @@
 import type { MetricSummary } from '../types'
 
-function StatTile({ label, value, tone }: { label: string; value: string | number; tone?: 'good' | 'warn' | 'bad' }) {
+function StatTile({
+  label,
+  value,
+  tone,
+  caption,
+}: {
+  label: string
+  value: string | number
+  tone?: 'good' | 'warn' | 'bad'
+  caption?: string
+}) {
   const toneClass = tone === 'good' ? 'text-good' : tone === 'warn' ? 'text-warn' : tone === 'bad' ? 'text-bad' : 'text-ink'
   return (
     <div className="flex-1 rounded-lg border border-border bg-bg-panel px-4 py-3">
       <div className="text-xs text-ink-muted">{label}</div>
       <div className={`mt-1 text-2xl font-semibold tabular-nums ${toneClass}`}>{value}</div>
+      {caption && <div className="mt-0.5 text-xs text-ink-faint">{caption}</div>}
     </div>
   )
 }
@@ -17,7 +28,11 @@ export default function SummaryStrip({ summary }: { summary: MetricSummary }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
       <StatTile label="Accounts" value={totalAccounts} />
-      <StatTile label="Active this month" value={summary.active} />
+      <StatTile
+        label="Active this month"
+        value={summary.active}
+        caption={`${summary.active_last_month} last month`}
+      />
       <StatTile label="Under-consuming" value={summary.under} tone={summary.under > 0 ? 'bad' : undefined} />
       <StatTile label="On track" value={summary.on_track} tone="good" />
       <StatTile label="Over-consuming" value={summary.over} tone={summary.over > 0 ? 'warn' : undefined} />
