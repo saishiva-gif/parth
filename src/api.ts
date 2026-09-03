@@ -17,6 +17,23 @@ export async function fetchMous(): Promise<MouRow[]> {
   return data.rows
 }
 
+export interface SyncResult {
+  status: 'ok' | 'noop' | 'error'
+  rows_fetched?: number
+  fetched_through?: string | null
+  reason?: string
+  error?: string
+}
+
+export async function triggerSync(): Promise<SyncResult> {
+  const res = await fetch('/api/sync')
+  const data = await res.json()
+  if (!res.ok || data.status === 'error') {
+    throw new Error(data.error || `Sync failed: ${res.status}`)
+  }
+  return data
+}
+
 export async function fetchKnownUsernames(): Promise<string[]> {
   const res = await fetch('/api/usernames')
   if (!res.ok) {

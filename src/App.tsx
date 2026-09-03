@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchDashboardData } from './api'
+import { fetchDashboardData, triggerSync } from './api'
 import type { DashboardData, Metric } from './types'
 import Tabs from './components/Tabs'
 import SummaryStrip from './components/SummaryStrip'
@@ -13,6 +13,8 @@ export default function App() {
   const [tab, setTab] = useState<Metric>('NDR_AI_AGENT_WITHOUT_VOICEMAIL')
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [editingMous, setEditingMous] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     fetchDashboardData()
@@ -23,6 +25,23 @@ export default function App() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    setRefreshMessage(null)
+    try {
+      const result = await triggerSync()
+      reload()
+      setRefreshMessage(
+        result.status === 'noop' ? 'Already up to date' : `Synced ${result.rows_fetched ?? 0} new rows`,
+      )
+    } catch (e) {
+      setRefreshMessage(e instanceof Error ? e.message : String(e))
+    } finally {
+      setRefreshing(false)
+      setTimeout(() => setRefreshMessage(null), 5000)
+    }
+  }
 
   if (error) {
     return (
@@ -55,12 +74,36 @@ export default function App() {
               Data through {data.fetched_through ?? '—'} · generated {new Date(data.generated_at).toLocaleString()}
             </p>
           </div>
-          <button
-            onClick={() => setEditingMous(true)}
-            className="rounded-md border border-border px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-accent hover:text-ink"
-          >
-            Manage MOUs
-          </button>
+          <div className="flex items-center gap-3">
+            {refreshMessage && <span className="text-xs text-ink-faint">{refreshMessage}</span>}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Pulls new Databricks usage since the last sync (also runs automatically once a day)"
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-accent hover:text-ink disabled:opacity-50"
+            >
+              <svg
+                className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                viewBox="0 0 20 20"
+                fill="none"
+              >
+                <path
+                  d="M16 10a6 6 0 1 1-1.76-4.24M16 3v4h-4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              onClick={() => setEditingMous(true)}
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-ink-muted transition-colors hover:border-accent hover:text-ink"
+            >
+              Manage MOUs
+            </button>
+          </div>
         </div>
       </div>
 
