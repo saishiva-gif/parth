@@ -85,6 +85,49 @@ export default function AccountTable({
     }
   }
 
+  function exportCsv() {
+    const header = [
+      'Account',
+      'Databricks username',
+      'MTD usage',
+      'MOU',
+      '% of MOU (paced)',
+      'Projected (paced)',
+      'Status',
+      'Trend WoW %',
+      'Active this month',
+      'Active last month',
+    ]
+    const esc = (v: string | number | null) => {
+      if (v === null) return ''
+      const s = String(v)
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const lines = filteredSorted.map((a) =>
+      [
+        a.account,
+        a.databricks_username,
+        a.mtd_usage,
+        a.mou_monthly,
+        a.pct_of_mou === null ? null : a.pct_of_mou.toFixed(1),
+        a.pace_projected,
+        a.alert,
+        a.trend_wow_pct === null ? null : a.trend_wow_pct.toFixed(1),
+        a.is_active ? 'yes' : 'no',
+        a.is_active_last_month ? 'yes' : 'no',
+      ]
+        .map(esc)
+        .join(','),
+    )
+    const csv = '﻿' + [header.map(esc).join(','), ...lines].join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `accounts-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg-panel">
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -243,11 +286,21 @@ export default function AccountTable({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border px-4 py-2.5 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          {filteredSorted.length === 0
-            ? '0 results'
-            : `${(clampedPage - 1) * PAGE_SIZE + 1}–${Math.min(clampedPage * PAGE_SIZE, filteredSorted.length)} of ${filteredSorted.length}`}
-        </span>
+        <div className="flex items-center gap-3">
+          <span>
+            {filteredSorted.length === 0
+              ? '0 results'
+              : `${(clampedPage - 1) * PAGE_SIZE + 1}–${Math.min(clampedPage * PAGE_SIZE, filteredSorted.length)} of ${filteredSorted.length}`}
+          </span>
+          <button
+            onClick={exportCsv}
+            disabled={filteredSorted.length === 0}
+            title="Download all rows matching the current filters and sort as CSV"
+            className="rounded-md border border-border px-2 py-1 disabled:opacity-40 enabled:hover:border-accent enabled:hover:text-ink"
+          >
+            Export CSV
+          </button>
+        </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
